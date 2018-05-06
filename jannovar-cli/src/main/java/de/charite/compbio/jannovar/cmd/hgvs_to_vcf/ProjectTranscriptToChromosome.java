@@ -95,9 +95,11 @@ public class ProjectTranscriptToChromosome extends JannovarAnnotationCommand {
 			PrintWriter pw = new PrintWriter(client.getOutputStream());
 		) {
 			/* get message size in first line */
-			int messageSize = Integer.parseInt(in.readLine());
-			int recvSize = 0;
-			int read;
+			String b;
+			int read, messageSize = 0, recvSize = 0;
+			if ((b = in.readLine()) != null) {
+				messageSize = Integer.parseInt(b);
+			}
 			char[] chunk = new char[2048];
 			StringBuilder chunks = new StringBuilder();
 			while (recvSize < messageSize) {
@@ -108,20 +110,24 @@ public class ProjectTranscriptToChromosome extends JannovarAnnotationCommand {
 				chunks.append(chunk);
 			}
 
-			BufferedReader bsr = new BufferedReader(new StringReader(chunks.toString()));
-
-			ByteArrayOutputStream output = new ByteArrayOutputStream();
-			try (VariantContextWriter writer = openStream(output)) {
-				processVariants(writer, bsr);
-				pw.println(output.size());
-				pw.println(0);
-				pw.print(output.toString());
-			} catch (Exception e) {
-				String msg = e.getMessage();
-				pw.println(msg.length() + 1);
-				pw.println(-1);
-				pw.println(e.getMessage());
+			if (messageSize > 0) {
+				ByteArrayOutputStream output = new ByteArrayOutputStream();
+				BufferedReader bsr = new BufferedReader(new StringReader(chunks.toString()));
+				try (VariantContextWriter writer = openStream(output)) {
+					processVariants(writer, bsr);
+					pw.println(output.size());
+					pw.println(0);
+					pw.print(output.toString());
+				} catch (Exception e) {
+					String msg = e.getMessage();
+					pw.println(msg.length() + 1);
+					pw.println(-1);
+					pw.println(e.getMessage());
+				}
+			} else {
+				System.err.println("No message received.");
 			}
+
 			System.err.println("Connection closed.");
 		} catch (IOException e) {
 			System.err.println(e.getMessage());
