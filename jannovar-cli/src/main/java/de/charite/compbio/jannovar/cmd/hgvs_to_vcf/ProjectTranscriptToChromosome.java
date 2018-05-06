@@ -98,6 +98,7 @@ public class ProjectTranscriptToChromosome extends JannovarAnnotationCommand {
 			try (VariantContextWriter writer = openString(output)) {
 				processVariants(writer, in);
 			}
+			pw.println(output.size());
 			pw.print(output.toString());
 			System.err.println("Connection closed.");
 		} catch (IOException e) {
