@@ -102,7 +102,7 @@
 		<resources>
 			<resource>
 				<directory>src/main/resources</directory>
-				<!--Use filtering so that maven will replace placeholders with values 
+				<!--Use filtering so that maven will replace placeholders with values
 					from the pom e.g. ${project.version} -->
 				<filtering>true</filtering>
 			</resource>
@@ -118,7 +118,7 @@
 						<manifest>
 							<addClasspath>true</addClasspath>
 							<classpathPrefix>lib/</classpathPrefix>
-							<!-- set useUniqueVersions=false in order that the classpath has the 
+							<!-- set useUniqueVersions=false in order that the classpath has the
 								SNAPSHOT instead of the build number prefixed to the dependency -->
 							<useUniqueVersions>false</useUniqueVersions>
 							<mainClass>de.charite.compbio.jannovar.Jannovar</mainClass>
@@ -166,7 +166,7 @@
 							<resources>
 								<resource>
 									<directory>src/resources</directory>
-									<!--Use filtering so that maven will replace placeholders with values 
+									<!--Use filtering so that maven will replace placeholders with values
 										from the pom e.g. ${project.version} -->
 									<filtering>true</filtering>
 									<includes>
@@ -181,7 +181,7 @@
 					</execution>
 				</executions>
 			</plugin>
-			<!--This plugin assembles the various elements together into a redistributable 
+			<!--This plugin assembles the various elements together into a redistributable
 				zip/tar.gz file -->
 			<plugin>
 				<artifactId>maven-assembly-plugin</artifactId>

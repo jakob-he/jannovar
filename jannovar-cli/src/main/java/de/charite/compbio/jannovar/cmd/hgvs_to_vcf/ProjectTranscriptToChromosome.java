@@ -1,16 +1,14 @@
 package de.charite.compbio.jannovar.cmd.hgvs_to_vcf;
 
+import java.io.*;
 import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileReader;
-import java.io.IOException;
-import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import java.net.ServerSocket;
+import java.net.Socket;
 
 import com.google.common.collect.Lists;
 
@@ -40,10 +38,11 @@ import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 import htsjdk.variant.vcf.VCFSimpleHeaderLine;
 import net.sourceforge.argparse4j.inf.Namespace;
+import org.apache.logging.log4j.core.jmx.Server;
 
 /**
  * Project transcript to chromosomal changes
- * 
+ *
  * @author <a href="mailto:manuel.holtgrewe@bihealth.de">Manuel Holtgrewe</a>
  */
 public class ProjectTranscriptToChromosome extends JannovarAnnotationCommand {
@@ -70,21 +69,77 @@ public class ProjectTranscriptToChromosome extends JannovarAnnotationCommand {
 		deserializeTranscriptDefinitionFile(options.getDatabaseFilePath());
 		System.err.println("Loading FASTA index...");
 		loadFASTAIndex();
+		if (options.getServerMode()) {
+			serverProcessing();
+		} else {
+			simpleFileProcessing();
+		}
+	}
+
+	private void serverProcessing() {
+		System.err.println("Running HGVS to VCF translator in server mode.");
+		System.err.println("Running on port: " + Integer.toString(options.getServerPort()));
+		try (ServerSocket server = new ServerSocket(options.getServerPort())) {
+			while (true) {
+				acceptConnection(server);
+			}
+		} catch (IOException e) {
+			System.err.println(e.getMessage());
+		}
+	}
+
+	private void acceptConnection(ServerSocket server) {
+		try (
+			Socket client = server.accept();
+			BufferedReader in = new BufferedReader(new InputStreamReader(client.getInputStream()));
+			PrintWriter pw = new PrintWriter(client.getOutputStream());
+		) {
+			ByteArrayOutputStream output = new ByteArrayOutputStream();
+			try (VariantContextWriter writer = openString(output)) {
+				processVariants(writer, in);
+			}
+			pw.print(output.toString());
+			System.err.println("Connection closed.");
+		} catch (IOException e) {
+			System.err.println(e.getMessage());
+		}
+	}
+
+	private void simpleFileProcessing(){
 		System.err.println("Opening output VCF file...");
 		try (VariantContextWriter writer = openOutputFile()) {
 			processFile(writer);
 		}
 	}
 
+	private VariantContextWriter openString(OutputStream output) {
+		VariantContextWriterBuilder builder = new VariantContextWriterBuilder();
+		builder.setReferenceDictionary((fasta.getSequenceDictionary()));
+		builder.setOutputStream(output);
+		builder.unsetOption(Options.INDEX_ON_THE_FLY);
+		VariantContextWriter writer = builder.build();
+		VCFHeader header = createVCFHeader();
+		writer.writeHeader(header);
+		return writer;
+	}
+
 	private VariantContextWriter openOutputFile() {
 		VariantContextWriterBuilder builder = new VariantContextWriterBuilder()
-				.setReferenceDictionary(fasta.getSequenceDictionary()).setOutputFile(options.getPathOutputVCF());
+			.setReferenceDictionary(fasta.getSequenceDictionary()).setOutputFile(options.getPathOutputVCF());
 		if (options.getPathOutputVCF().endsWith(".gz") || options.getPathOutputVCF().endsWith(".bcf"))
 			builder.setOption(Options.INDEX_ON_THE_FLY);
 		else
 			builder.unsetOption(Options.INDEX_ON_THE_FLY);
 		VariantContextWriter writer = builder.build();
 
+		VCFHeader header = createVCFHeader();
+
+		writer.writeHeader(header);
+
+		return writer;
+	}
+
+	private VCFHeader createVCFHeader() {
 		VCFHeader header = new VCFHeader();
 		int i = 0;
 		for (SAMSequenceRecord record : fasta.getSequenceDictionary().getSequences()) {
@@ -96,14 +151,11 @@ public class ProjectTranscriptToChromosome extends JannovarAnnotationCommand {
 
 		header.addMetaDataLine(new VCFSimpleHeaderLine("ALT", "ERROR", "Error in conversion"));
 		header.addMetaDataLine(new VCFFilterHeaderLine("PARSE_ERROR",
-				"Problem in parsing original HGVS variant string, written out as variant at 1:g.1N>N"));
+			"Problem in parsing original HGVS variant string, written out as variant at 1:g.1N>N"));
 		header.addMetaDataLine(new VCFInfoHeaderLine("ERROR_MESSAGE", 1, VCFHeaderLineType.String, "Error message"));
 		header.addMetaDataLine(new VCFInfoHeaderLine("ORIG_VAR", 1, VCFHeaderLineType.String,
-				"Original HGVS variant string from input file to hgvs-to-vcf"));
-
-		writer.writeHeader(header);
-
-		return writer;
+			"Original HGVS variant string from input file to hgvs-to-vcf"));
+		return header;
 	}
 
 	private void loadFASTAIndex() {
@@ -140,15 +192,19 @@ public class ProjectTranscriptToChromosome extends JannovarAnnotationCommand {
 		}
 	}
 
-	private void processFile(VariantContextWriter writer) {
-		try (BufferedReader br = new BufferedReader(new FileReader(new File(options.getPathInputText())))) {
-			String line;
+	private void processVariants(VariantContextWriter writer, BufferedReader br) {
+		String line;
+		try {
 			while ((line = br.readLine()) != null) {
 				// Read line
 				String word = line.trim();
 
+				// stop if empty line encountered
+				if (word.isEmpty()) {
+					break;
+				}
 				// Parse variant
-				HGVSVariant rawVar = null;
+				HGVSVariant rawVar;
 				try {
 					HGVSParser parser = new HGVSParser();
 					rawVar = parser.parseHGVSString(word);
@@ -172,6 +228,14 @@ public class ProjectTranscriptToChromosome extends JannovarAnnotationCommand {
 				writeVariant(writer, genomeVar);
 				System.err.println(word + " => " + rawVar + " => " + genomeVar);
 			}
+		} catch (IOException e) {
+			System.err.println(e.getMessage());
+		}
+	}
+
+	private void processFile(VariantContextWriter writer) {
+		try (BufferedReader br = new BufferedReader(new FileReader(new File(options.getPathInputText())))) {
+			processVariants(writer, br);
 		} catch (FileNotFoundException e) {
 			throw new UncheckedJannovarException("Problem opening file", e);
 		} catch (IOException e) {
