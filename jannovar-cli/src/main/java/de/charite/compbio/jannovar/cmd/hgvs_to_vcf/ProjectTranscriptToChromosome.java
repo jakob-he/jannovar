@@ -94,9 +94,25 @@ public class ProjectTranscriptToChromosome extends JannovarAnnotationCommand {
 			BufferedReader in = new BufferedReader(new InputStreamReader(client.getInputStream()));
 			PrintWriter pw = new PrintWriter(client.getOutputStream());
 		) {
+			/* get message size in first line */
+			int messageSize = Integer.parseInt(in.readLine());
+			int recvSize = 0;
+			int read;
+			char[] chunk = new char[2048];
+			StringBuilder chunks = new StringBuilder();
+			while (recvSize < messageSize) {
+				if ((read = in.read(chunk, recvSize, Integer.min(messageSize - recvSize, 2048))) < 1) {
+					break;
+				}
+				recvSize += read;
+				chunks.append(chunk);
+			}
+
+			BufferedReader bsr = new BufferedReader(new StringReader(chunks.toString()));
+
 			ByteArrayOutputStream output = new ByteArrayOutputStream();
-			try (VariantContextWriter writer = openString(output)) {
-				processVariants(writer, in);
+			try (VariantContextWriter writer = openStream(output)) {
+				processVariants(writer, bsr);
 			}
 			pw.println(output.size());
 			pw.print(output.toString());
@@ -113,7 +129,7 @@ public class ProjectTranscriptToChromosome extends JannovarAnnotationCommand {
 		}
 	}
 
-	private VariantContextWriter openString(OutputStream output) {
+	private VariantContextWriter openStream(OutputStream output) {
 		VariantContextWriterBuilder builder = new VariantContextWriterBuilder();
 		builder.setReferenceDictionary((fasta.getSequenceDictionary()));
 		builder.setOutputStream(output);
