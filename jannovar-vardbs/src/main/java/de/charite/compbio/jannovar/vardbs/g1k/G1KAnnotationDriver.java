@@ -4,15 +4,13 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map.Entry;
 
-import de.charite.compbio.jannovar.vardbs.base.AnnotatingRecord;
-import de.charite.compbio.jannovar.vardbs.base.DBAnnotationOptions;
-import de.charite.compbio.jannovar.vardbs.base.JannovarVarDBException;
-import de.charite.compbio.jannovar.vardbs.base.VCFHeaderExtender;
+import de.charite.compbio.jannovar.vardbs.base.*;
 import de.charite.compbio.jannovar.vardbs.base.vcf.AbstractVCFDBAnnotationDriver;
 import de.charite.compbio.jannovar.vardbs.base.vcf.GenotypeMatch;
 import de.charite.compbio.jannovar.vardbs.dbsnp.DBSNPRecord;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
+import htsjdk.variant.variantcontext.writer.VariantContextWriterBuilder;
 
 // TODO: handle MNVs appropriately
 
@@ -25,7 +23,7 @@ public class G1KAnnotationDriver extends AbstractVCFDBAnnotationDriver<G1KRecord
 
 	public G1KAnnotationDriver(String vcfPath, String fastaPath, DBAnnotationOptions options)
 			throws JannovarVarDBException {
-		super(vcfPath, fastaPath, options, new G1KVariantContextToRecordConverter());
+		super(new VCFReaderVariantProvider(vcfPath), fastaPath, options, new G1KVariantContextToRecordConverter());
 	}
 
 	@Override
@@ -36,7 +34,7 @@ public class G1KAnnotationDriver extends AbstractVCFDBAnnotationDriver<G1KRecord
 	@Override
 	protected HashMap<Integer, AnnotatingRecord<G1KRecord>> pickAnnotatingDBRecords(
 			HashMap<Integer, ArrayList<GenotypeMatch>> annotatingRecords,
-			HashMap<GenotypeMatch, AnnotatingRecord<G1KRecord>> matchToRecord) {
+			HashMap<GenotypeMatch, AnnotatingRecord<G1KRecord>> matchToRecord, boolean isMatch) {
 		// Pick best annotation for each alternative allele
 		HashMap<Integer, AnnotatingRecord<G1KRecord>> annotatingExacRecord = new HashMap<>();
 		for (Entry<Integer, ArrayList<GenotypeMatch>> entry : annotatingRecords.entrySet()) {
@@ -49,8 +47,8 @@ public class G1KAnnotationDriver extends AbstractVCFDBAnnotationDriver<G1KRecord
 					final G1KRecord update = matchToRecord.get(m).getRecord();
 					if (update.getAlleleFrequencies(G1KPopulation.ALL).size() < alleleNo)
 						continue;
-					else if (current.getAlleleFrequencies(G1KPopulation.ALL).size() < alleleNo
-							|| current.highestAlleleFreq(alleleNo - 1) < update.highestAlleleFreq(alleleNo - 1))
+					else if (isMatch && current.getAlleleFrequencies(G1KPopulation.ALL).size() < alleleNo
+							|| isMatch && current.highestAlleleFreq(alleleNo - 1) < update.highestAlleleFreq(alleleNo - 1))
 						annotatingExacRecord.put(alleleNo, matchToRecord.get(m));
 				}
 			}

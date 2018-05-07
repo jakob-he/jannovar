@@ -12,10 +12,10 @@ import com.google.common.collect.ArrayListMultimap;
 import de.charite.compbio.jannovar.vardbs.base.AlleleMatcher;
 import de.charite.compbio.jannovar.vardbs.base.DBAnnotationDriver;
 import de.charite.compbio.jannovar.vardbs.base.DBAnnotationOptions;
-import de.charite.compbio.jannovar.vardbs.base.GenotypeMatch;
+import de.charite.compbio.jannovar.vardbs.base.vcf.GenotypeMatch;
 import de.charite.compbio.jannovar.vardbs.base.JannovarVarDBException;
 import de.charite.compbio.jannovar.vardbs.base.VCFHeaderExtender;
-import de.charite.compbio.jannovar.vardbs.base.VariantContextToRecordConverter;
+import de.charite.compbio.jannovar.vardbs.base.vcf.VariantContextToRecordConverter;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
@@ -43,7 +43,7 @@ public class ClinVarAnnotationDriver implements DBAnnotationDriver {
 
 	/**
 	 * Create annotation driver for a coordinate-sorted, bgzip-compressed, VCF file
-	 * 
+	 *
 	 * @param fastaPath
 	 *            FAI-indexed FASTA file with reference
 	 * @param vcfPath
@@ -96,7 +96,7 @@ public class ClinVarAnnotationDriver implements DBAnnotationDriver {
 
 	/**
 	 * Perform annotation with DB records
-	 * 
+	 *
 	 * @param obsVC
 	 *            The observed {@link VariantContext}
 	 * @param genotypeMatches

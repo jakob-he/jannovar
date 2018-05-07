@@ -3,7 +3,7 @@ package de.charite.compbio.jannovar.vardbs.generic_tsv;
 import de.charite.compbio.jannovar.vardbs.base.AlleleMatcher;
 import de.charite.compbio.jannovar.vardbs.base.DBAnnotationDriver;
 import de.charite.compbio.jannovar.vardbs.base.DatabaseVariantContextProvider;
-import de.charite.compbio.jannovar.vardbs.base.GenotypeMatch;
+import de.charite.compbio.jannovar.vardbs.base.vcf.GenotypeMatch;
 import de.charite.compbio.jannovar.vardbs.base.JannovarVarDBException;
 import de.charite.compbio.jannovar.vardbs.base.VCFHeaderExtender;
 import htsjdk.samtools.util.CloseableIterator;
@@ -150,7 +150,7 @@ public final class GenericTSVAnnotationDriver implements DBAnnotationDriver {
 
 	/**
 	 * Annotate <code>vc</code> with the annotating database records.
-	 * 
+	 *
 	 * @param refDesc
 	 */
 	private void annotateWith(VariantContext vc, String infix,
