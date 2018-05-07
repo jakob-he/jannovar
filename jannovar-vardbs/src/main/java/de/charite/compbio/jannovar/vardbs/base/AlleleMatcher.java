@@ -7,13 +7,14 @@ import java.util.List;
 import de.charite.compbio.jannovar.vardbs.base.tabix.FeatureMatch;
 import de.charite.compbio.jannovar.vardbs.base.tabix.TabixFeature;
 import de.charite.compbio.jannovar.vardbs.base.vcf.GenotypeMatch;
+import com.google.common.collect.Lists;
 import htsjdk.variant.variantcontext.VariantContext;
 
 /**
  * Find matches between two allels (an observed and a database variant)
- * 
+ *
  * This class is an implementation detail and not part of the public interface.
- * 
+ *
  * @author <a href="mailto:manuel.holtgrewe@bihealth.de">Manuel Holtgrewe</a>
  */
 public final class AlleleMatcher {
@@ -23,7 +24,7 @@ public final class AlleleMatcher {
 
 	/**
 	 * Construct GenotypeMatcher
-	 * 
+	 *
 	 * @param pathFasta
 	 *            Path to FAI-indexed FASTA file
 	 * @throws JannovarVarDBException
@@ -34,10 +35,11 @@ public final class AlleleMatcher {
 	}
 
 	/**
-	 * Match genotypes of two {@link VariantContext}s
-	 * 
+	 * Match genotypes of two {@link VariantContext}s (chrom, position, ref, and alt have to be
+	 * equal)
+	 *
 	 * Indels will be left-shifted and normalized when necessary
-	 * 
+	 *
 	 * @param obsVC
 	 *            {@link VariantContext} describing the observed variant
 	 * @param dbVC
@@ -56,7 +58,7 @@ public final class AlleleMatcher {
 			int j = 1; // excludes reference allele
 			for (VariantDescription dbVar : dbVars) {
 				if (dbVar.equals(obsVar))
-					result.add(new GenotypeMatch(i, j, obsVC, dbVC));
+					result.add(new GenotypeMatch(i, j, obsVC, dbVC, true));
 				j += 1;
 			}
 
@@ -68,9 +70,9 @@ public final class AlleleMatcher {
 
 	/**
 	 * Match genotypes of two {@link VariantContext}s
-	 * 
+	 *
 	 * Indels will be left-shifted and normalized when necessary
-	 * 
+	 *
 	 * @param obsVC
 	 *            {@link VariantContext} describing the observed variant
 	 * @param dbVC
@@ -97,10 +99,10 @@ public final class AlleleMatcher {
 
 	/**
 	 * Pair genotypes of two {@link VariantContext}s based on their position, regardless of their genotype
-	 * 
-	 * In the end, all genotypes will be matched regardless of matching alleles, such that later the "best" (e.g., the
-	 * highest frequency one) can be used for annotating a variant.
-	 * 
+	 *
+	 * In the end, all genotypes will be matched regardless of matching alleles, such that later the
+	 * "best" (e.g., the highest frequency one) can be used for annotating a variant.
+	 *
 	 * @param obsVC
 	 *            {@link VariantContext} describing the observed variant
 	 * @param dbVC
@@ -118,8 +120,11 @@ public final class AlleleMatcher {
 		for (VariantDescription obsVar : obsVars) {
 			int j = 1; // excludes reference allele
 			for (VariantDescription dbVar : dbVars) {
-				if (dbVar.overlapsWith(obsVar))
-					result.add(new GenotypeMatch(i, j, obsVC, dbVC));
+				if (dbVar.equals(obsVar)) {
+					result.add(new GenotypeMatch(i, j, obsVC, dbVC, true));
+				} else if (dbVar.overlapsWith(obsVar)) {
+					result.add(new GenotypeMatch(i, j, obsVC, dbVC, false));
+				}
 				j += 1;
 			}
 
@@ -131,10 +136,10 @@ public final class AlleleMatcher {
 
 	/**
 	 * Pair genotypes of two {@link VariantContext}s based on their position, regardless of their genotype
-	 * 
+	 *
 	 * In the end, all genotypes will be matched regardless of matching alleles, such that later the "best" (e.g., the
 	 * highest frequency one) can be used for annotating a variant.
-	 * 
+	 *
 	 * @param obsVC
 	 *            {@link VariantContext} describing the observed variant
 	 * @param dbVC
@@ -159,7 +164,26 @@ public final class AlleleMatcher {
 		return result;
 	}
 
+	/**
+	 * Convert a {@link VariantContext} to a list of normalized variant descriptions
+	 *
+	 * This will generate one {@link VariantDescription} for each alternative allele in
+	 * <code>vcf</code>.
+	 *
+	 * @param vc
+	 *            {@link VariantContext} to convert
+	 * @return A {@link Collection} of {@link VariantDescription} objects corresponding to
+	 *         <code>vc</code>
+	 */
 	private Collection<VariantDescription> ctxToVariants(VariantContext vc) {
+		// Short-circuit in the case that we see a "database only" allele, e.g., as created when
+		// using generic TSV annotation without REF/ALT columns. In this case, the position is
+		// enough.
+		if (vc.getReference().toString().equals("N*") && vc.getNAlleles() == 1) {
+			return Lists.newArrayList(
+					new VariantDescription(vc.getContig(), vc.getStart() - 1, "N", "N"));
+		}
+
 		List<VariantDescription> vars = new ArrayList<>();
 		for (int i = 1; i < vc.getNAlleles(); ++i) {
 			VariantDescription vd = new VariantDescription(vc.getContig(), vc.getStart() - 1,

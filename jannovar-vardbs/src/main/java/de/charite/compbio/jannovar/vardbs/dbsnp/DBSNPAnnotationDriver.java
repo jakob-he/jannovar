@@ -13,6 +13,7 @@ import de.charite.compbio.jannovar.vardbs.base.JannovarVarDBException;
 import de.charite.compbio.jannovar.vardbs.base.VCFHeaderExtender;
 import de.charite.compbio.jannovar.vardbs.base.vcf.AbstractVCFDBAnnotationDriver;
 import de.charite.compbio.jannovar.vardbs.base.vcf.GenotypeMatch;
+import de.charite.compbio.jannovar.vardbs.base.VCFReaderVariantProvider;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 
@@ -28,7 +29,7 @@ final public class DBSNPAnnotationDriver extends AbstractVCFDBAnnotationDriver<D
 
 	/**
 	 * Create annotation driver for a coordinate-sorted, bgzip-compressed, dbSNP VCF file
-	 * 
+	 *
 	 * @param fastaPath
 	 *            FAI-indexed FASTA file with reference
 	 * @param vcfPath
@@ -38,12 +39,13 @@ final public class DBSNPAnnotationDriver extends AbstractVCFDBAnnotationDriver<D
 	 */
 	public DBSNPAnnotationDriver(String vcfPath, String fastaPath, DBAnnotationOptions options)
 			throws JannovarVarDBException {
-		super(vcfPath, fastaPath, options, new DBSNPVariantContextToRecordConverter());
+		super(new VCFReaderVariantProvider(vcfPath), fastaPath, options, new DBSNPVariantContextToRecordConverter());
+		VCFReaderVariantProvider vcfProvider = (VCFReaderVariantProvider) this.variantProvider;
 
-		this.dbSNPInfo = new DBSNPInfoFactory().build(vcfReader.getFileHeader());
+		this.dbSNPInfo = new DBSNPInfoFactory().build(vcfProvider.getVcfReader().getFileHeader());
 		if (dbSNPInfo.dbSNPBuildID != 147)
 			throw new JannovarVarDBException(
-					"Unsupported dbSNP build ID " + dbSNPInfo.dbSNPBuildID + " only supported is b174");
+					"Unsupported dbSNP build ID " + dbSNPInfo.dbSNPBuildID + " only supported is b147");
 	}
 
 	@Override
@@ -60,6 +62,7 @@ final public class DBSNPAnnotationDriver extends AbstractVCFDBAnnotationDriver<D
 		annotateInfoG5(vc, "", matchRecords, builder);
 		annotateInfoG5A(vc, "", matchRecords, builder);
 		annotateInfoIDs(vc, "", matchRecords, builder);
+		annotateInfoOrigin(vc, "", matchRecords, builder);
 
 		// Annotate with records with overlapping positions
 		if (options.isReportOverlapping() && !options.isReportOverlappingAsMatching()) {
@@ -68,6 +71,7 @@ final public class DBSNPAnnotationDriver extends AbstractVCFDBAnnotationDriver<D
 			annotateInfoG5(vc, "OVL_", overlapRecords, builder);
 			annotateInfoG5A(vc, "OVL_", overlapRecords, builder);
 			annotateInfoIDs(vc, "OVL_", overlapRecords, builder);
+			annotateInfoOrigin(vc, "OVL_", overlapRecords, builder);
 		}
 
 		return builder.make();
@@ -135,8 +139,33 @@ final public class DBSNPAnnotationDriver extends AbstractVCFDBAnnotationDriver<D
 		if (cafList.stream().allMatch(i -> (i == 0.0)))
 			return; // do not set list of zeroes
 
+		// Prepend reference frequency
+		double afRef = 1.0 - cafList.stream().mapToDouble(x -> x).sum();
+		afRef = Math.max(afRef, 0); // no negative values
+		cafList.add(0, afRef);
+
 		if (!cafList.isEmpty())
 			builder.attribute(idCAF, cafList);
+	}
+
+	private void annotateInfoOrigin(VariantContext vc, String infix,
+			HashMap<Integer, AnnotatingRecord<DBSNPRecord>> records, VariantContextBuilder builder) {
+		String idOrigin = options.getVCFIdentifierPrefix() + infix + "SAO";
+		ArrayList<String> originList = new ArrayList<>();
+		for (int i = 1; i < vc.getNAlleles(); ++i) {
+			if (records.get(i) != null) {
+				final DBSNPRecord record = records.get(i).getRecord();
+				originList.add(record.getVariantAlleleOrigin().toString());
+			} else {
+				originList.add(DBSNPVariantAlleleOrigin.UNSPECIFIED.toString());
+			}
+		}
+
+		if (originList.stream().allMatch(s -> ("UNSPECIFIED".equals(s))))
+			return; // do not set list of zeroes
+
+		if (!originList.isEmpty())
+			builder.attribute(idOrigin, originList);
 	}
 
 	private void annotateInfoCommon(VariantContext vc, String infix,
@@ -182,6 +211,9 @@ final public class DBSNPAnnotationDriver extends AbstractVCFDBAnnotationDriver<D
 				vals.add(Joiner.on('|').join(matchList.get(i - 1)));
 		}
 
+		if (vals.stream().allMatch(s -> ".".equals(s)))
+			return; // do not set list of "."
+
 		builder.attribute(idIDs, vals);
 	}
 
@@ -207,7 +239,7 @@ final public class DBSNPAnnotationDriver extends AbstractVCFDBAnnotationDriver<D
 	@Override
 	protected HashMap<Integer, AnnotatingRecord<DBSNPRecord>> pickAnnotatingDBRecords(
 			HashMap<Integer, ArrayList<GenotypeMatch>> annotatingRecords,
-			HashMap<GenotypeMatch, AnnotatingRecord<DBSNPRecord>> matchToRecord) {
+			HashMap<GenotypeMatch, AnnotatingRecord<DBSNPRecord>> matchToRecord, boolean isMatch) {
 		// Pick best annotation for each alternative allele
 		HashMap<Integer, AnnotatingRecord<DBSNPRecord>> annotatingDBSNPRecord = new HashMap<>();
 		for (Entry<Integer, ArrayList<GenotypeMatch>> entry : annotatingRecords.entrySet()) {
@@ -220,8 +252,11 @@ final public class DBSNPAnnotationDriver extends AbstractVCFDBAnnotationDriver<D
 					final DBSNPRecord update = matchToRecord.get(m).getRecord();
 					if (update.getAlleleFrequenciesG1K().size() <= alleleNo)
 						continue; // no number to update
-					else if (current.getAlleleFrequenciesG1K().size() <= alleleNo || current.getAlleleFrequenciesG1K()
-							.get(alleleNo) < update.getAlleleFrequenciesG1K().get(alleleNo))
+					if ((isMatch && (current.getAlleleFrequenciesG1K().size() <= alleleNo
+							|| current.getAlleleFrequenciesG1K().get(alleleNo - 1) < update.getAlleleFrequenciesG1K()
+									.get(alleleNo - 1)))
+							|| (!isMatch
+									&& current.highestAlleleFreqG1KOverall() < update.highestAlleleFreqG1KOverall()))
 						annotatingDBSNPRecord.put(alleleNo, matchToRecord.get(m));
 				}
 			}

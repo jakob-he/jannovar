@@ -182,7 +182,8 @@ abstract class AnnotationBuilder {
 			else
 				varTypes.add(VariantEffect.NON_CODING_TRANSCRIPT_INTRON_VARIANT);
 		}
-		return new Annotation(transcript, change, varTypes, locAnno, getGenomicNTChange(), getCDSNTChange(), null);
+		return new Annotation(transcript, change, varTypes, locAnno, getGenomicNTChange(), getCDSNTChange(), null,
+				messages);
 	}
 
 	/** @return intronic anotation */
@@ -220,7 +221,7 @@ abstract class AnnotationBuilder {
 				VariantEffect.SPLICE_ACCEPTOR_VARIANT, VariantEffect.SPLICE_REGION_VARIANT)).isEmpty())
 			proteinChange = ProteinMiscChange.build(true, ProteinMiscChangeType.DIFFICULT_TO_PREDICT);
 		return new Annotation(transcript, change, varTypes, locAnno, getGenomicNTChange(), getCDSNTChange(),
-				proteinChange);
+				proteinChange, messages);
 	}
 
 	/**
@@ -310,33 +311,33 @@ abstract class AnnotationBuilder {
 			GenomePosition lPos = pos.shifted(-1);
 			if (so.liesInUpstreamRegion(lPos))
 				return new Annotation(transcript, change, ImmutableList.of(VariantEffect.UPSTREAM_GENE_VARIANT), null,
-						null, null, null);
+						null, null, null, messages);
 			else
 				// so.liesInDownstreamRegion(pos))
 				return new Annotation(transcript, change, ImmutableList.of(VariantEffect.DOWNSTREAM_GENE_VARIANT), null,
-						null, null, null);
+						null, null, null, messages);
 		} else {
 			// Non-empty interval, at least one reference base changed/deleted.
 			GenomeInterval changeInterval = change.getGenomeInterval();
 			if (so.overlapsWithUpstreamRegion(changeInterval))
 				return new Annotation(transcript, change, ImmutableList.of(VariantEffect.UPSTREAM_GENE_VARIANT), null,
-						null, null, null);
+						null, null, null, messages);
 			else
 				// so.overlapsWithDownstreamRegion(changeInterval)
 				return new Annotation(transcript, change, ImmutableList.of(VariantEffect.DOWNSTREAM_GENE_VARIANT), null,
-						null, null, null);
+						null, null, null, messages);
 		}
 	}
 
 	/** @return intergenic anotation */
 	protected Annotation buildIntergenicAnnotation() {
 		return new Annotation(transcript, change, ImmutableList.of(VariantEffect.INTERGENIC_VARIANT), null, null, null,
-				null);
+				null, messages);
 	}
 
 	/**
 	 * @param transcript
-	 *            {@link TranscriptInfo} to build annotation for
+	 *            {@link TranscriptModel} to build annotation for
 	 * @param change
 	 *            {@link GenomeVariant} to build annotation for
 	 * @return AnnotationLocation with location annotation
@@ -413,7 +414,7 @@ abstract class AnnotationBuilder {
 
 	/**
 	 * @param transcript
-	 *            {@link TranscriptInfo} to build annotation for
+	 *            {@link TranscriptModel} to build annotation for
 	 * @param change
 	 *            {@link GenomeVariant} to build annotation for
 	 * @return {@link NucleotideRange} describing the CDS-level position of the change (or transcript-level in the case

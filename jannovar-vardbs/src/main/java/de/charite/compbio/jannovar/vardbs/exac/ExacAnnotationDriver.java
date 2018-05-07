@@ -13,6 +13,7 @@ import de.charite.compbio.jannovar.vardbs.base.VCFHeaderExtender;
 import de.charite.compbio.jannovar.vardbs.base.vcf.AbstractVCFDBAnnotationDriver;
 import de.charite.compbio.jannovar.vardbs.base.vcf.GenotypeMatch;
 import de.charite.compbio.jannovar.vardbs.dbsnp.DBSNPRecord;
+import de.charite.compbio.jannovar.vardbs.base.VCFReaderVariantProvider;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 
@@ -27,7 +28,7 @@ public class ExacAnnotationDriver extends AbstractVCFDBAnnotationDriver<ExacReco
 
 	public ExacAnnotationDriver(String vcfPath, String fastaPath, DBAnnotationOptions options)
 			throws JannovarVarDBException {
-		super(vcfPath, fastaPath, options, new ExacVariantContextToRecordConverter());
+		super(new VCFReaderVariantProvider(vcfPath), fastaPath, options, new ExacVariantContextToRecordConverter());
 	}
 
 	@Override
@@ -38,7 +39,7 @@ public class ExacAnnotationDriver extends AbstractVCFDBAnnotationDriver<ExacReco
 	@Override
 	protected HashMap<Integer, AnnotatingRecord<ExacRecord>> pickAnnotatingDBRecords(
 			HashMap<Integer, ArrayList<GenotypeMatch>> annotatingRecords,
-			HashMap<GenotypeMatch, AnnotatingRecord<ExacRecord>> matchToRecord) {
+			HashMap<GenotypeMatch, AnnotatingRecord<ExacRecord>> matchToRecord, boolean isMatch) {
 		// Pick best annotation for each alternative allele
 		HashMap<Integer, AnnotatingRecord<ExacRecord>> annotatingExacRecord = new HashMap<>();
 		for (Entry<Integer, ArrayList<GenotypeMatch>> entry : annotatingRecords.entrySet()) {
@@ -51,8 +52,8 @@ public class ExacAnnotationDriver extends AbstractVCFDBAnnotationDriver<ExacReco
 					final ExacRecord update = matchToRecord.get(m).getRecord();
 					if (update.getAlleleFrequencies(ExacPopulation.ALL).size() < alleleNo)
 						continue;
-					else if (current.getAlleleFrequencies(ExacPopulation.ALL).size() < alleleNo
-							|| current.highestAlleleFreq(alleleNo - 1) < update.highestAlleleFreq(alleleNo - 1))
+					if ((isMatch && current.highestAlleleFreq(alleleNo - 1) < update.highestAlleleFreq(alleleNo - 1))
+							|| (!isMatch && current.highestAlleleFreqOverall() < update.highestAlleleFreqOverall()))
 						annotatingExacRecord.put(alleleNo, matchToRecord.get(m));
 				}
 			}
@@ -109,8 +110,8 @@ public class ExacAnnotationDriver extends AbstractVCFDBAnnotationDriver<ExacReco
 			}
 		}
 
-		builder.attribute(options.getVCFIdentifierPrefix() + infix + "BEST_AC", acs);
-		builder.attribute(options.getVCFIdentifierPrefix() + infix + "BEST_AF", afs);
+		builder.attribute(options.getVCFIdentifierPrefix() + infix + "AC_POPMAX", acs);
+		builder.attribute(options.getVCFIdentifierPrefix() + infix + "AF_POPMAX", afs);
 	}
 
 	private void annotateChromosomeCounts(VariantContext vc, String infix,
@@ -147,13 +148,13 @@ public class ExacAnnotationDriver extends AbstractVCFDBAnnotationDriver<ExacReco
 			if (use && !acList.isEmpty())
 				acLists.put(attrID, acList);
 		}
-		
+
 		for (String attrID : acLists.keySet()) {
 			builder.attribute(attrID, acLists.get(attrID));
 		}
-		
+
 	}
-	
+
 	private void annotateAlleleHetCounts(VariantContext vc, String infix,
 			HashMap<Integer, AnnotatingRecord<ExacRecord>> records, VariantContextBuilder builder) {
 		Map<String, List<Integer>> acLists = new HashMap<>();
@@ -168,7 +169,7 @@ public class ExacAnnotationDriver extends AbstractVCFDBAnnotationDriver<ExacReco
 				}
 				final ExacRecord record = records.get(i).getRecord();
 				final int alleleNo = records.get(i).getAlleleNo();
-				if (record.getAlleleHetCounts(pop).isEmpty()) {
+				if (record.getAlleleHetCounts(pop) != null && record.getAlleleHetCounts(pop).isEmpty()) {
 					acList.add(0);
 				} else {
 					acList.add(record.getAlleleHetCounts(pop).get(alleleNo - 1));
@@ -179,15 +180,14 @@ public class ExacAnnotationDriver extends AbstractVCFDBAnnotationDriver<ExacReco
 			if (use && !acList.isEmpty())
 				acLists.put(attrID, acList);
 		}
-		
+
 		for (String attrID : acLists.keySet()) {
 			builder.attribute(attrID, acLists.get(attrID));
 		}
 	}
-	
+
 	private void annotateAlleleHomCounts(VariantContext vc, String infix,
 			HashMap<Integer, AnnotatingRecord<ExacRecord>> records, VariantContextBuilder builder) {
-		Map<String, List<Integer>> acLists = new HashMap<>();
 		for (ExacPopulation pop : ExacPopulation.values()) {
 			final String attrID = options.getVCFIdentifierPrefix() + infix + "HOM_" + pop;
 			ArrayList<Integer> acList = new ArrayList<>();
@@ -213,7 +213,7 @@ public class ExacAnnotationDriver extends AbstractVCFDBAnnotationDriver<ExacReco
 			builder.attribute(attrID, acList);
 		}
 	}
-	
+
 	private void annotateAlleleHemiCounts(VariantContext vc, String infix,
 			HashMap<Integer, AnnotatingRecord<ExacRecord>> records, VariantContextBuilder builder) {
 		Map<String, List<Integer>> acLists = new HashMap<>();
@@ -241,7 +241,7 @@ public class ExacAnnotationDriver extends AbstractVCFDBAnnotationDriver<ExacReco
 			if (use && !acList.isEmpty())
 				acLists.put(attrID, acList);
 		}
-		
+
 		for (String attrID : acLists.keySet()) {
 			builder.attribute(attrID, acLists.get(attrID));
 		}

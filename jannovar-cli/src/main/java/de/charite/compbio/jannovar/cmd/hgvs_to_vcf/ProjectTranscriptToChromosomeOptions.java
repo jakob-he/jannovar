@@ -15,7 +15,7 @@ import net.sourceforge.argparse4j.inf.Subparsers;
 
 /**
  * Projection from transcript-level to chromosome-level changes
- * 
+ *
  * @author <a href="mailto:manuel.holtgrewe@bihealth.de">Manuel Holtgrewe</a>
  */
 public class ProjectTranscriptToChromosomeOptions extends JannovarAnnotationOptions {
@@ -29,6 +29,12 @@ public class ProjectTranscriptToChromosomeOptions extends JannovarAnnotationOpti
 	/** Path to reference FASTA file */
 	private String pathReferenceFASTA;
 
+	/** Setting to run as server */
+	private boolean serverMode;
+
+	/** server default port */
+	private int serverPort;
+
 	@Override
 	public void setFromArgs(Namespace args) throws CommandLineParsingException {
 		super.setFromArgs(args);
@@ -36,18 +42,21 @@ public class ProjectTranscriptToChromosomeOptions extends JannovarAnnotationOpti
 		pathInputText = args.getString("input_txt");
 		pathOutputVCF = args.getString("output_vcf");
 		pathReferenceFASTA = args.getString("reference_fasta");
+
+		serverMode = args.getBoolean("server");
+		serverPort = args.getInt("port");
 	}
 
 	/**
 	 * Setup {@link ArgumentParser}
-	 * 
+	 *
 	 * @param subParsers
 	 *            {@link Subparsers} to setup
 	 */
 	public static void setupParser(Subparsers subParsers) {
 		BiFunction<String[], Namespace, ProjectTranscriptToChromosome> handler = (argv, args) -> {
 			try {
-				return new ProjectTranscriptToChromosome(argv, args);
+				return new ProjectTranscriptToChromosome(args);
 			} catch (CommandLineParsingException e) {
 				throw new UncheckedJannovarException("Could not parse command line", e);
 			}
@@ -59,10 +68,14 @@ public class ProjectTranscriptToChromosomeOptions extends JannovarAnnotationOpti
 		ArgumentGroup requiredGroup = subParser.addArgumentGroup("Required arguments");
 		requiredGroup.addArgument("-r", "--reference-fasta").help("Path to reference FASTA file").required(true);
 		requiredGroup.addArgument("-d", "--database").help("Path to database .ser file").required(true);
-		requiredGroup.addArgument("-i", "--input-txt").help("Input file with HGVS transcript-level changes, line-by-line")
-				.required(true);
-		requiredGroup.addArgument("-o", "--output-vcf").help("Output VCF file with chromosome-level changes")
-				.required(true);
+
+		ArgumentGroup fileGroup = subParser.addArgumentGroup(("File mode arguments"));
+		fileGroup.addArgument("-i", "--input-txt").help(
+			"Input file with HGVS transcript-level changes, line-by-line"
+		);
+		fileGroup.addArgument("-o", "--output-vcf").help(
+			"Output VCF file with chromosome-level changes"
+		);
 
 		ArgumentGroup optionalGroup = subParser.addArgumentGroup("Optional Arguments");
 		optionalGroup.addArgument("--show-all").help("Show all effects").setDefault(false);
@@ -70,6 +83,10 @@ public class ProjectTranscriptToChromosomeOptions extends JannovarAnnotationOpti
 				.dest("3_prime_shifting").setDefault(true).action(Arguments.storeFalse());
 		optionalGroup.addArgument("--3-letter-amino-acids").help("Enable usage of 3 letter amino acid codes")
 				.setDefault(false).action(Arguments.storeTrue());
+
+		ArgumentGroup serverGroup = subParser.addArgumentGroup("Server Mode Arguments");
+		serverGroup.addArgument("--server").help("Run as server.").setDefault(false).action(Arguments.storeTrue());
+		serverGroup.addArgument("--port").help("Set port for server. Default port 8888.").setDefault(8888);
 
 		subParser.epilog("Example: java -jar Jannovar.jar tx-to-chrom -i in.txt -o out.vcf");
 
@@ -99,6 +116,10 @@ public class ProjectTranscriptToChromosomeOptions extends JannovarAnnotationOpti
 	public void setPathOutputVCF(String pathOutputVCF) {
 		this.pathOutputVCF = pathOutputVCF;
 	}
+
+	public boolean getServerMode() { return serverMode; }
+
+	public int getServerPort() { return serverPort; }
 
 	@Override
 	public String toString() {

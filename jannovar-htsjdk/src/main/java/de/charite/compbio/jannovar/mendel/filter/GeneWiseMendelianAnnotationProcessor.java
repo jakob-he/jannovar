@@ -24,7 +24,7 @@ import de.charite.compbio.jannovar.data.ReferenceDictionary;
 import de.charite.compbio.jannovar.impl.intervals.Interval;
 import de.charite.compbio.jannovar.impl.intervals.IntervalArray;
 import de.charite.compbio.jannovar.mendel.IncompatiblePedigreeException;
-import de.charite.compbio.jannovar.mendel.ModeOfInheritance;
+import de.charite.compbio.jannovar.mendel.SubModeOfInheritance;
 import de.charite.compbio.jannovar.mendel.bridge.CannotAnnotateMendelianInheritance;
 import de.charite.compbio.jannovar.mendel.bridge.MendelVCFHeaderExtender;
 import de.charite.compbio.jannovar.mendel.bridge.VariantContextMendelianAnnotator;
@@ -32,16 +32,15 @@ import de.charite.compbio.jannovar.pedigree.Pedigree;
 import de.charite.compbio.jannovar.reference.GenomeInterval;
 import de.charite.compbio.jannovar.reference.Strand;
 import de.charite.compbio.jannovar.reference.TranscriptModel;
-import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.vcf.VCFHeader;
 
 /**
  * Process {@link VariantContext} objects and annotate them with mendelian inheritance compatibility
- * 
+ *
  * The variants put into the processor must be clustered by contig name and sorted by begin position
- * 
+ *
  * @author <a href="mailto:manuel.holtgrewe@bihealth.de">Manuel Holtgrewe</a>
  */
 public class GeneWiseMendelianAnnotationProcessor implements VariantContextProcessor {
@@ -59,6 +58,10 @@ public class GeneWiseMendelianAnnotationProcessor implements VariantContextProce
 	private final Consumer<VariantContext> sink;
 	/** Provider for contig name to number conversion */
 	private final ContigInfoProvider contigInfoProvider;
+	/** Whether or not to interpret genotype-wise filters */
+	private final boolean interpretGenotypeFilters;
+	/** Whether or not to interpret variant-wise filters */
+	private final boolean interpretVariantFilters;
 
 	/** Currently active genes and variants assigned to them. */
 	HashMap<Gene, ArrayList<VariantContext>> activeGenes = new HashMap<>();
@@ -70,22 +73,28 @@ public class GeneWiseMendelianAnnotationProcessor implements VariantContextProce
 
 	/**
 	 * Construct processor with the path to the PED file to use
-	 * 
+	 *
 	 * @param pedigree
 	 *            the {@link Pedigree} object to use
 	 * @param jannovarData
 	 *            {@link JannovarData} object to use for getting the genes from
 	 * @param sink
 	 *            location to write the {@link VariantContext} to
+	 * @param interpretFilters
+	 *            whether or not to interpret genotype- or variant-wise filters
 	 */
 	public GeneWiseMendelianAnnotationProcessor(Pedigree pedigree, JannovarData jannovarData,
-			Consumer<VariantContext> sink) {
+			Consumer<VariantContext> sink, boolean interpretFilters) {
 		this.pedigree = pedigree;
 		this.jannovarData = jannovarData;
 		this.sink = sink;
 
+		this.interpretGenotypeFilters = interpretFilters;
+		this.interpretVariantFilters = interpretFilters;
+
 		this.geneList = buildGeneList(this.jannovarData);
-		this.annotator = new VariantContextMendelianAnnotator(this.pedigree);
+		this.annotator = new VariantContextMendelianAnnotator(this.pedigree, interpretGenotypeFilters,
+				interpretVariantFilters);
 
 		this.contigInfoProvider = new ContigInfoProvider();
 	}
@@ -101,7 +110,7 @@ public class GeneWiseMendelianAnnotationProcessor implements VariantContextProce
 		} else {
 			// Contig already known, check that variants are sorted by contig
 			if (!contigInfoProvider.isContigKnown(vc.getContig()))
-				throw new UncheckedJannovarException("Variants are not sorted by chromome, seeing contig "
+				throw new UncheckedJannovarException("Variants are not sorted by chromosome, seeing contig "
 						+ vc.getContig() + " the second time with contig " + contigInfoProvider.getCurrentContig()
 						+ " before the second time");
 		}
@@ -274,7 +283,7 @@ public class GeneWiseMendelianAnnotationProcessor implements VariantContextProce
 	/**
 	 * Builds genotype call lists for variants in currently active genes, checks for compatibility, and in case of
 	 * compatibility, marks variants in <code>gene</code> as compatible.
-	 * 
+	 *
 	 * @throws VariantContextFilterException
 	 *             in case of problems with processing the variant
 	 * @throws CannotAnnotateMendelianInheritance
@@ -284,10 +293,10 @@ public class GeneWiseMendelianAnnotationProcessor implements VariantContextProce
 			throws VariantContextFilterException, CannotAnnotateMendelianInheritance {
 		// Compute compatible modes for all variants in the gene
 		final ArrayList<VariantContext> variantsForGene = activeGenes.get(gene);
-		ImmutableMap<ModeOfInheritance, ImmutableList<VariantContext>> compatibleMap = annotator
-				.computeCompatibleInheritanceModes(variantsForGene);
+		ImmutableMap<SubModeOfInheritance, ImmutableList<VariantContext>> compatibleMap = annotator
+				.computeCompatibleInheritanceSubModes(variantsForGene);
 		// Annotate the variants with new compatible modes
-		for (Entry<ModeOfInheritance, ImmutableList<VariantContext>> e : compatibleMap.entrySet()) {
+		for (Entry<SubModeOfInheritance, ImmutableList<VariantContext>> e : compatibleMap.entrySet()) {
 			for (VariantContext vc : e.getValue()) {
 				activeVariants.get(vc).addCompatibleMode(e.getKey());
 			}
@@ -355,14 +364,20 @@ public class GeneWiseMendelianAnnotationProcessor implements VariantContextProce
 			activeVariants.remove(var.getVariantContext());
 
 			ArrayList<String> modes = new ArrayList<>();
-			modes.addAll(var.getCompatibleModes().stream().map(m -> m.getAbbreviation()).filter(m -> m != null)
-					.collect(Collectors.toList()));
+			modes.addAll(var.getCompatibleModes().stream().map(m -> m.toModeOfInheritance().getAbbreviation())
+					.filter(m -> m != null).collect(Collectors.toList()));
+			ArrayList<String> arSubModes = new ArrayList<>();
+			arSubModes.addAll(var.getCompatibleModes().stream().filter(m -> m.isRecessive())
+					.map(m -> m.getAbbreviation()).filter(m -> m != null).collect(Collectors.toList()));
 
 			if (modes.isEmpty()) {
 				sink.accept(var.getVariantContext());
 			} else {
 				VariantContextBuilder vcBuilder = new VariantContextBuilder(var.getVariantContext());
-				vcBuilder.attribute(MendelVCFHeaderExtender.key(), modes);
+				if (!modes.isEmpty())
+					vcBuilder.attribute(MendelVCFHeaderExtender.key(), modes);
+				if (!arSubModes.isEmpty())
+					vcBuilder.attribute(MendelVCFHeaderExtender.keySub(), arSubModes);
 				sink.accept(vcBuilder.make());
 			}
 		}
@@ -405,12 +420,13 @@ public class GeneWiseMendelianAnnotationProcessor implements VariantContextProce
 
 		/**
 		 * Register new contig, returning ID of it
-		 * 
+		 *
 		 * Also update {@link currentContig} to <code>name</code>
 		 */
 		int registerContig(String name) {
 			if (isContigKnown(name))
-				throw new RuntimeException("Trying to add contig twice " + name);
+				throw new RuntimeException("Seeing contig " + name
+						+ " a second time (with other contig name in between). Is your file sorted?");
 			contigNameToNo.put(name, nextContigNo);
 			currentContig = name;
 			return nextContigNo++;

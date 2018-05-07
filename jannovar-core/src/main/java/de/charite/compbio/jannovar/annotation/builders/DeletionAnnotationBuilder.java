@@ -35,7 +35,7 @@ public final class DeletionAnnotationBuilder extends AnnotationBuilder {
 
 	/**
 	 * @param transcript
-	 *            {@link TranscriptInfo} to build the annotation for
+	 *            {@link TranscriptModel} to build the annotation for
 	 * @param change
 	 *            {@link GenomeVariant} to build the annotation with
 	 * @param options
@@ -84,12 +84,14 @@ public final class DeletionAnnotationBuilder extends AnnotationBuilder {
 
 	private Annotation buildFeatureAblationAnnotation() {
 		return new Annotation(transcript, change, ImmutableList.of(VariantEffect.TRANSCRIPT_ABLATION), locAnno,
-				getGenomicNTChange(), getCDSNTChange(), ProteinMiscChange.build(true, ProteinMiscChangeType.NO_PROTEIN));
+				getGenomicNTChange(), getCDSNTChange(), ProteinMiscChange.build(true, ProteinMiscChangeType.NO_PROTEIN),
+				messages);
 	}
 
 	private Annotation buildStartLossAnnotation() {
 		return new Annotation(transcript, change, ImmutableList.of(VariantEffect.START_LOST), locAnno,
-				getGenomicNTChange(), getCDSNTChange(), ProteinMiscChange.build(true, ProteinMiscChangeType.NO_PROTEIN));
+				getGenomicNTChange(), getCDSNTChange(), ProteinMiscChange.build(true, ProteinMiscChangeType.NO_PROTEIN),
+				messages);
 	}
 
 	/**
@@ -158,7 +160,7 @@ public final class DeletionAnnotationBuilder extends AnnotationBuilder {
 				handleFrameShiftCase();
 
 			return new Annotation(transcript, change, varTypes, locAnno, getGenomicNTChange(), getCDSNTChange(),
-					proteinChange);
+					proteinChange, messages);
 		}
 
 		private void handleNonFrameShiftCase() {
@@ -190,11 +192,11 @@ public final class DeletionAnnotationBuilder extends AnnotationBuilder {
 				if (aaChange.getPos() == aaChange.getLastPos()) {
 					if (aaChange.getAlt().length() > 0)
 						proteinChange = ProteinIndel.buildWithSeqDescription(true, wtAAFirst, aaChange.getPos(),
-								wtAAFirst, aaChange.getPos(), new ProteinSeqDescription(), new ProteinSeqDescription(
-										aaChange.getAlt()));
+								wtAAFirst, aaChange.getPos(), new ProteinSeqDescription(),
+								new ProteinSeqDescription(aaChange.getAlt()));
 					else
-						proteinChange = ProteinDeletion.buildWithSequence(true, wtAAFirst, aaChange.getPos(),
-								wtAAFirst, aaChange.getPos(), aaChange.getAlt());
+						proteinChange = ProteinDeletion.buildWithSequence(true, wtAAFirst, aaChange.getPos(), wtAAFirst,
+								aaChange.getPos(), aaChange.getAlt());
 				} else {
 					if (aaChange.getAlt().length() > 0)
 						proteinChange = ProteinIndel.buildWithSeqDescription(true, wtAAFirst, aaChange.getPos(),
@@ -241,13 +243,15 @@ public final class DeletionAnnotationBuilder extends AnnotationBuilder {
 
 			// Handle the case of deleting a stop codon at the very last entry of the translated amino acid string and
 			// short-circuit.
+			// == is correct even if getPos() is zero based 
+			// because getPos points to the stop position which is one base after the AA sequence
 			if (varTypes.contains(VariantEffect.STOP_LOST) && aaChange.getPos() == varAASeq.length()) {
 				// Note: used to be "p.*${pos}del?"
 				proteinChange = ProteinMiscChange.build(true, ProteinMiscChangeType.DIFFICULT_TO_PREDICT);
 				return;
 			}
 			// Handle the case of deleting up to the end of the sequence.
-			if (aaChange.getPos() >= varAASeq.length()) {
+			if (aaChange.getLastPos() >= varAASeq.length()) {
 				final String wtAAFirst = Character.toString(wtAASeq.charAt(aaChange.getPos()));
 				final String wtAALast = Character.toString(wtAASeq.charAt(aaChange.getLastPos()));
 				if (aaChange.getRef().length() == 1)

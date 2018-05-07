@@ -1,10 +1,176 @@
 # Jannovar Changelog
 
-## develop
+## v0.25
+
+### overall
+
+* Changing HTSJDK version to 2.14.3
+* Using the one letter amino acid code in HGVS representation as default (changes in core, hgvs, htsjdk and cli). Now the cli option `--3-letter-amino-acids` works as expected.
+
+### jannovar-cli
+
+* Support for [RefSeq GRCh37.p13 interim release](https://www.ncbi.nlm.nih.gov/books/NBK430989/#_news_02-14-2017-interim-annotation-update-human_)
+* Support of new RefSeq headers
+* Using RefSeq GRCh38.p12 annotation instead of GRCh38.p7
+
+### jannovar-vardbs
+
+* Replacing whitespace with string when annotating from TSV file.
 
 ### jannovar-htsjdk
 
-* Fixing bug with problems of unmodifieable Attributes (error annotation).
+* Fixing bug in GenomeRegionSequenceExtraction. Error reports always sequences from the first contig in the referebnce file and not the requested contig. Affects only the cli command `hgvs-to-vcf`.
+
+## v0.24
+
+### jannovar-cli
+
+* Fixing annotation with Polyphen prediction (data type)
+
+### overall
+
+* Changing HTSJDK version to 2.14.0
+* Codestyle improvements
+
+### jannovar-core
+
+* Fixing mendelian "bug" #393 (has no affect because check was not necessary)
+* New inheritance mode: mitochondrial
+* Bugfix ProgressBar (doPrint was always true)
+
+### jannovar-vardbs
+
+* Fixed problem with interpretation of Clinvar annotation origin.
+* Clinvar `BEST_AC` and `BEST_AF` are now named `AC_POPMAX` and `AF_POPMAX` to be consitent with gnomAD
+
+## v0.23
+
+### overall
+
+* Changing Guava version to 0.22
+* Changing slf4j version to 1.7.24
+* Changing log4j version to 2.8.2
+
+### jannovar-cli
+
+* Adding experimental support for annotating with VCF files.
+* Adding experimental support for annotating with tabix-indexed TSV files and dbNSFP.
+* Integrating the advanced pedigree-based filters (useful for filtration to de novo variants).
+* Making it possible to override database INI settings using user-specified INI files.
+
+### jannovar-core
+
+* Fixing stop loss annotation (#351).
+* Finishing renaming of TranscriptInfo to TranscriptModel (#348).
+* Upstream and downstream variant were considered "not off exome". They now are.
+* Adding mitochondrial filtering function (#362).
+
+### jannovar-filter
+
+* Adding code for performing more advanced filtration/annotation filtering to de novo variants.
+* Improving documentation of `MaxFreqAr` and `MaxFreqAd` in header.
+
+
+### jannovar-vardbs
+
+* Adding experimental support for annotating with VCF files
+* Adding experimental support for annotating with tabix-indexed TSV files and dbNSFP
+
+### jannovar-filter
+
+* Fixing bug that ignored variant filters for recessive annotation
+
+## v0.22
+
+### jannovar-htsjdk
+
+* Fixin NPE problem with inheritance annotation
+
+### jannovar-statistics
+
+* Also counting number of variants on contigs
+* Fixing counting bug that made UTR3 variants be counted as UTR5
+* Fixing NPE in case of null variant annotations (e.g., unknown contig)
+
+### jannovar-vardbs
+
+* Fixing a problem with normalization on variant annotation
+* Fixing problem with default value of `CLNSIG` (`"25"` -> `"255"`)
+
+### jannovar-filter
+
+* Incorporating gnomAD annotation into exclusion by frequency for inheritance filter (#343)
+* Fixing header description for `MinAafHomAlt` and `MaxAafHomRef` (#342)
+
+### jannovar-cli
+
+* Checking that reference is given also for gnomAD VCF annotation
+
+## v0.21
+
+### all
+
+* Fixing language in mvn surfire plugin. Now mvn tests work on locale de_DE etc..
+
+### jannovar-cli
+
+* Adding `--interval` argument for only processing a part of the file
+* Adding `statistics` command for computing statistics on variants in VCF file
+* Fixing bug in HGVS to VCF
+* Better handling missing `.dict` file for HGVS to VCF translation
+* Adding `--annotate-as-singleton-pedigree` parameter for annotation of singleton pedigrees without pedigree file (single individual is assumed to be affected)
+* More friendly user message in case of unsorted files on inheritance mode annotation
+* Interpretation of filters in compatible inheritance mode annotation
+* Integrating new jannovar-filter into Jannovar CLI.
+  Filtered genotypes will be passed into the inheritance filter as no-call.
+* Adding annotation with ClinVar
+* Printing warnings next to the annotations in `annotate-pos`
+* AR inheritance annotation of two siblings bugfix (no parents avaiable in comp.het mode) #314
+
+### jannovar-filter
+
+* Adding functionality to add filters based on frequencies found in dbSNP and ExAC
+* Adding back as module for threshold-based filtration.
+  This module allows to create genotype-wise soft-filters for low coverage.
+  Also, variants can be soft-filtered based on whether the genotype calls of all affected individuals are filtered out.
+
+### jannovar-core
+
+* Extending API to expose mendelian checks for comp het./ad alt (via `SubModuleOfInheritance` and `MendelianInheritanceChecker`
+* Jannovar version is now written out to database file which allows better error checks and compatibility messages
+* Un-deprecating `BestAnnotationListTextGenerator` and `AllAnnotationListTextGenerator` classes, useful for text-based output formats
+* Changing behaviour of `VariantEffect.isOffExome()` and adding a variant that allows to decide between UTR on/off exome and non-consensus splice region on/off exome
+* Making the behaviour of overriding transcripts configurable at least in the code, using default to not do this any more
+* Adding `WARNING_REF_DOES_NOT_MATCH_TRANSCRIPT` to `AnnotationMessage`
+* Properly pushing through warnings from the annotators into the returned `VariantAnnotation` object
+* Pedigree files are now more compatible to the PLINK format
+	* whitespace separated instead of tab separated (read only, written as TSV)
+	* interpreting any value not in {1, 2} to be "unknown" sex instead (coded as 0) of throwing
+
+### jannovar-htsjdk
+
+* Fixing bug in transcript-to-genome translation, in HGVS the stop codon is not part of the CDS but in `TranscriptModel` it is
+* Optional interpretation of certain filters in GeneWiseMendelianAnnotationProcessor.
+* Extending interface of `VariantContextAnnotator` for automatic error annotation generation, previously in jannovar-cli
+* Adding `VariantEffectHeaderExtender` class to `jannovar-htsjdk`
+* Fixing bug with problems of unmodifiable Attributes (error annotation).
+
+### jannovar-vardbs
+
+* Also writing out variant allele origin for dbSNP
+* Adding annotation with COSMIC
+* Fixing header description for exac database
+* Fixing output of `DBSNP_CAF` to also contain reference allele AF
+* Adding annotation with ClinVar, can annotate all clinvar variants
+
+### jannovar-inheritance-checker
+
+* Removing this outdated module.
+  Use the classes in `de.charite.compbio.jannovar.mendel` instead
+
+### jannovar-stats
+
+* all-new module for gathering statistics on VCF files
 
 ## v0.20
 

@@ -10,6 +10,7 @@ import de.charite.compbio.jannovar.vardbs.base.JannovarVarDBException;
 import de.charite.compbio.jannovar.vardbs.base.VCFHeaderExtender;
 import de.charite.compbio.jannovar.vardbs.base.vcf.AbstractVCFDBAnnotationDriver;
 import de.charite.compbio.jannovar.vardbs.base.vcf.GenotypeMatch;
+import de.charite.compbio.jannovar.vardbs.base.VCFReaderVariantProvider;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 
@@ -22,13 +23,13 @@ public class UK10KAnnotationDriver extends AbstractVCFDBAnnotationDriver<UK10KRe
 
 	public UK10KAnnotationDriver(String vcfPath, String fastaPath, DBAnnotationOptions options)
 			throws JannovarVarDBException {
-		super(vcfPath, fastaPath, options, new UK10KVariantContextToRecordConverter());
+		super(new VCFReaderVariantProvider(vcfPath), fastaPath, options, new UK10KVariantContextToRecordConverter());
 	}
 
 	@Override
 	protected HashMap<Integer, AnnotatingRecord<UK10KRecord>> pickAnnotatingDBRecords(
 			HashMap<Integer, ArrayList<GenotypeMatch>> annotatingRecords,
-			HashMap<GenotypeMatch, AnnotatingRecord<UK10KRecord>> matchToRecord) {
+			HashMap<GenotypeMatch, AnnotatingRecord<UK10KRecord>> matchToRecord, boolean isMatch) {
 		// Pick best annotation for each alternative allele
 		HashMap<Integer, AnnotatingRecord<UK10KRecord>> annotatingRecord = new HashMap<>();
 		for (Entry<Integer, ArrayList<GenotypeMatch>> entry : annotatingRecords.entrySet()) {
@@ -41,8 +42,10 @@ public class UK10KAnnotationDriver extends AbstractVCFDBAnnotationDriver<UK10KRe
 					final UK10KRecord update = matchToRecord.get(m).getRecord();
 					if (update.getAltAlleleFrequencies().size() <= alleleNo)
 						continue; // no number to update
-					else if (current.getAltAlleleFrequencies().size() <= alleleNo || current.getAltAlleleFrequencies()
-							.get(alleleNo) < update.getAltAlleleFrequencies().get(alleleNo))
+
+					if ((isMatch && current.getAltAlleleFrequencies().get(alleleNo - 1) < update
+							.getAltAlleleFrequencies().get(alleleNo - 1))
+							|| (!isMatch && current.highestAlleleCountOverall() < update.highestAlleleCountOverall()))
 						annotatingRecord.put(alleleNo, matchToRecord.get(m));
 				}
 			}

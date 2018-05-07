@@ -2,11 +2,9 @@ package de.charite.compbio.jannovar.reference;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Map;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSortedSet;
-import com.google.common.collect.ImmutableSortedSet.Builder;
 
 /**
  * Class for building immutable {@link TranscriptModel} objects field-by-field.
@@ -16,7 +14,7 @@ import com.google.common.collect.ImmutableSortedSet.Builder;
  * Usage:
  *
  * <pre>
- * {@link TranscriptModelBuilder} builder = new TranscriptInfoBuilder();
+ * {@link TranscriptModelBuilder} builder = new TranscriptModelBuilder();
  * builder.{@link TranscriptModelBuilder#setStrand setStrand}('-');
  * builder.{@link TranscriptModelBuilder#setAccession setAccession}(&quot;&lt;accession&gt;&quot;);
  * // ...
@@ -30,32 +28,32 @@ public class TranscriptModelBuilder {
 	/** The explicit strand of the target transcript. */
 	private Strand strand = Strand.FWD;
 
-	/** {@link TranscriptInfo#accession} of next {@link TranscriptInfo} to build. */
+	/** {@link TranscriptModel#accession} of next {@link TranscriptModel} to build. */
 	private String accession = null;
 
-	/** {@link TranscriptInfo#geneSymbol} of next {@link TranscriptInfo} to build. */
+	/** {@link TranscriptModel#geneSymbol} of next {@link TranscriptModel} to build. */
 	private String geneSymbol = null;
 
-	/** {@link TranscriptInfo#txRegion} of next {@link TranscriptInfo} to build. */
+	/** {@link TranscriptModel#txRegion} of next {@link TranscriptModel} to build. */
 	private GenomeInterval txRegion = null;
 
-	/** {@link TranscriptInfo#cdsRegion} of next {@link TranscriptInfo} to build. */
+	/** {@link TranscriptModel#cdsRegion} of next {@link TranscriptModel} to build. */
 	private GenomeInterval cdsRegion = null;
 
-	/** {@link TranscriptInfo#exonRegions} of next {@link TranscriptInfo} to build. */
+	/** {@link TranscriptModel#exonRegions} of next {@link TranscriptModel} to build. */
 	private ArrayList<GenomeInterval> exonRegions = new ArrayList<GenomeInterval>();
 
-	/** {@link TranscriptInfo#accession} of next {@link TranscriptInfo} to build. */
+	/** {@link TranscriptModel#accession} of next {@link TranscriptModel} to build. */
 	private String sequence = null;
 
-	/** {@link TranscriptInfo#geneID} of next {@link TranscriptInfo} to build. */
+	/** {@link TranscriptModel#geneID} of next {@link TranscriptModel} to build. */
 	private String geneID = null;
 
 	/** Map with alternative gene IDs */
 	private HashMap<String, String> altGeneIDs = new HashMap<String, String>();;
 
 	/**
-	 * {@link TranscriptInfo#transcriptSupportLevel} of next {@link TranscriptInfo} to build.
+	 * {@link TranscriptModel#transcriptSupportLevel} of next {@link TranscriptModel} to build.
 	 *
 	 * @see TranscriptSupportLevels
 	 */
@@ -93,7 +91,7 @@ public class TranscriptModelBuilder {
 			}
 		}
 
-		// Create new TranscriptInfo object.
+		// Create new TranscriptModel object.
 		return new TranscriptModel(accession, geneSymbol, txRegion.withStrand(strand), cdsRegion.withStrand(strand),
 				ImmutableList.copyOf(builder.build()), sequence, geneID, transcriptSupportLevel, altGeneIDs);
 	}
