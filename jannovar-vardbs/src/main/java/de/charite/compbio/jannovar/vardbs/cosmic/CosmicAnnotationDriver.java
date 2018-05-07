@@ -2,10 +2,10 @@ package de.charite.compbio.jannovar.vardbs.cosmic;
 
 import com.google.common.base.Joiner;
 import com.google.common.collect.Lists;
-import de.charite.compbio.jannovar.vardbs.base.AbstractDBAnnotationDriver;
+import de.charite.compbio.jannovar.vardbs.base.vcf.AbstractVCFDBAnnotationDriver;
+import de.charite.compbio.jannovar.vardbs.base.vcf.GenotypeMatch;
 import de.charite.compbio.jannovar.vardbs.base.AnnotatingRecord;
 import de.charite.compbio.jannovar.vardbs.base.DBAnnotationOptions;
-import de.charite.compbio.jannovar.vardbs.base.GenotypeMatch;
 import de.charite.compbio.jannovar.vardbs.base.JannovarVarDBException;
 import de.charite.compbio.jannovar.vardbs.base.VCFHeaderExtender;
 import de.charite.compbio.jannovar.vardbs.base.VCFReaderVariantProvider;
@@ -20,7 +20,7 @@ import java.util.Map.Entry;
  *
  * @author <a href="mailto:manuel.holtgrewe@bihealth.de">Manuel Holtgrewe</a>
  */
-public class CosmicAnnotationDriver extends AbstractDBAnnotationDriver<CosmicRecord> {
+public class CosmicAnnotationDriver extends AbstractVCFDBAnnotationDriver<CosmicRecord> {
 
 	public CosmicAnnotationDriver(String vcfPath, String fastaPath, DBAnnotationOptions options)
 			throws JannovarVarDBException {

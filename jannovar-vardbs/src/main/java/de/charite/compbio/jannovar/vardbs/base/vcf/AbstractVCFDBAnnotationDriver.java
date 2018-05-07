@@ -33,9 +33,6 @@ public abstract class AbstractVCFDBAnnotationDriver<RecordType> implements DBAnn
 	/** Configuration */
 	protected final DBAnnotationOptions options;
 
-	/** vcfPath */
-	protected final String vcfPath;
-
 	/**
 	 * Create annotation driver for a coordinate-sorted, bgzip-compressed, VCF file
 	 *
@@ -51,11 +48,10 @@ public abstract class AbstractVCFDBAnnotationDriver<RecordType> implements DBAnn
 	 * @throws JannovarVarDBException
 	 *             on problems loading the reference FASTA/FAI file or incompatible dbSNP version
 	 */
-	public AbstractDBAnnotationDriver(DatabaseVariantContextProvider variantProvider, String vcfPath, String fastaPath,
+	public AbstractVCFDBAnnotationDriver(DatabaseVariantContextProvider variantProvider, String fastaPath,
 			DBAnnotationOptions options, VariantContextToRecordConverter<RecordType> vcToRecord)
 			throws JannovarVarDBException {
 		this.variantProvider = variantProvider;
-		this.vcfPath = vcfPath;
 		this.matcher = new AlleleMatcher(fastaPath);
 		this.vcToRecord = vcToRecord;
 		this.options = options;

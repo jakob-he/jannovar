@@ -1,8 +1,8 @@
 package de.charite.compbio.jannovar.vardbs.generic_vcf;
 
-import de.charite.compbio.jannovar.vardbs.base.AbstractDBAnnotationDriver;
+import de.charite.compbio.jannovar.vardbs.base.vcf.AbstractVCFDBAnnotationDriver;
 import de.charite.compbio.jannovar.vardbs.base.AnnotatingRecord;
-import de.charite.compbio.jannovar.vardbs.base.GenotypeMatch;
+import de.charite.compbio.jannovar.vardbs.base.vcf.GenotypeMatch;
 import de.charite.compbio.jannovar.vardbs.base.JannovarVarDBException;
 import de.charite.compbio.jannovar.vardbs.base.VCFHeaderExtender;
 import de.charite.compbio.jannovar.vardbs.base.VCFReaderVariantProvider;
@@ -19,7 +19,7 @@ import java.util.Map.Entry;
  *
  * @author <a href="mailto:manuel.holtgrewe@bihealth.de">Manuel Holtgrewe</a>
  */
-public class GenericVCFAnnotationDriver extends AbstractDBAnnotationDriver<VariantContext> {
+public class GenericVCFAnnotationDriver extends AbstractVCFDBAnnotationDriver<VariantContext> {
 
 	private final GenericVCFAnnotationOptions genericVcfOptions;
 	private GenericVCFHeaderExtender genericVcfHeaderExtender;
@@ -46,7 +46,7 @@ public class GenericVCFAnnotationDriver extends AbstractDBAnnotationDriver<Varia
 		for (Entry<Integer, ArrayList<GenotypeMatch>> entry : annotatingRecords.entrySet()) {
 			final int alleleNo = entry.getKey();
 			for (GenotypeMatch m : entry.getValue()) {
-				// Select first or match. 
+				// Select first or match.
 				if (!annotatingRecord.containsKey(alleleNo) || m.isMatch()) {
 					annotatingRecord.put(alleleNo, matchToRecord.get(m));
 					if (m.isMatch()) { // stop looking forward in case of match

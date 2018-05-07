@@ -233,9 +233,10 @@ public class AnnotateVCFCommand extends JannovarAnnotationCommand {
 				DBAnnotationOptions remmOptions = DBAnnotationOptions.createDefaults();
 				remmOptions.setIdentifierPrefix(options.prefixReMM);
 				DBVariantContextAnnotator tabixAnno = new DBVariantContextAnnotatorFactory()
-						.constructReMM(options.pathReMM, remmOptions);
+					.constructReMM(options.pathReMM, remmOptions);
 				tabixAnno.extendHeader(vcfHeader);
 				stream = stream.map(tabixAnno::annotateVariantContext);
+			}
 
 			// If configured, annotate using ClinVar VCF file (extend header to
 			// use for writing out)
@@ -462,7 +463,7 @@ public class AnnotateVCFCommand extends JannovarAnnotationCommand {
 	 * @throws PedParseException in the case of problems with parsing pedigrees
 	 */
 	private Pedigree loadPedigree(VCFHeader vcfHeader)
-			throws PedParseException, IOException, IncompatiblePedigreeException {
+		throws PedParseException, IOException, IncompatiblePedigreeException {
 		if (options.pathPedFile != null) {
 			final PedFileReader pedReader = new PedFileReader(new File(options.pathPedFile));
 			final PedFileContents pedContents = pedReader.read();
@@ -470,12 +471,12 @@ public class AnnotateVCFCommand extends JannovarAnnotationCommand {
 		} else {
 			if (vcfHeader.getSampleNamesInOrder().size() != 1)
 				throw new IncompatiblePedigreeException(
-						"VCF file does not have exactly one sample but required for singleton pedigree construction");
+					"VCF file does not have exactly one sample but required for singleton pedigree construction");
 			final String sampleName = vcfHeader.getSampleNamesInOrder().get(0);
 			final PedPerson pedPerson =
-					new PedPerson(sampleName, sampleName, "0", "0", Sex.UNKNOWN, Disease.AFFECTED);
+				new PedPerson(sampleName, sampleName, "0", "0", Sex.UNKNOWN, Disease.AFFECTED);
 			final PedFileContents pedContents =
-					new PedFileContents(ImmutableList.of(), ImmutableList.of(pedPerson));
+				new PedFileContents(ImmutableList.of(), ImmutableList.of(pedPerson));
 			return new Pedigree(pedContents, pedContents.getIndividuals().get(0).getPedigree());
 		}
 	}
@@ -491,14 +492,14 @@ public class AnnotateVCFCommand extends JannovarAnnotationCommand {
 	 * @throws IncompatiblePedigreeException If the pedigree is incompatible with the VCF file
 	 */
 	private VariantContextProcessor buildMendelianProcessors(VariantContextWriter writer,
-			VCFHeader vcfHeader)
-			throws PedParseException, IOException, IncompatiblePedigreeException {
+															 VCFHeader vcfHeader)
+		throws PedParseException, IOException, IncompatiblePedigreeException {
 		if (options.pathPedFile != null || options.annotateAsSingletonPedigree) {
 			final Pedigree pedigree = loadPedigree(vcfHeader);
 			checkPedigreeCompatibility(pedigree, vcfHeader);
 			final GeneWiseMendelianAnnotationProcessor mendelProcessor =
-					new GeneWiseMendelianAnnotationProcessor(pedigree, jannovarData,
-							vc -> writer.add(vc), options.isInheritanceAnnoUseFilters());
+				new GeneWiseMendelianAnnotationProcessor(pedigree, jannovarData,
+					vc -> writer.add(vc), options.isInheritanceAnnoUseFilters());
 			return new CoordinateSortingChecker(mendelProcessor);
 		} else {
 			return new ConsumerProcessor(vc -> writer.add(vc));
@@ -513,12 +514,11 @@ public class AnnotateVCFCommand extends JannovarAnnotationCommand {
 	 * @throws IncompatiblePedigreeException if the VCF file is not compatible with the pedigree
 	 */
 	private void checkPedigreeCompatibility(Pedigree pedigree, VCFHeader vcfHeader)
-			throws IncompatiblePedigreeException {
+		throws IncompatiblePedigreeException {
 		List<String> missing = vcfHeader.getGenotypeSamples().stream()
-				.filter(x -> !pedigree.getNames().contains(x)).collect(Collectors.toList());
+			.filter(x -> !pedigree.getNames().contains(x)).collect(Collectors.toList());
 		if (!missing.isEmpty()) throw new IncompatiblePedigreeException(
-				"The VCF file has the following sample names not present in Pedigree: "
-						+ Joiner.on(", ").join(missing));
+			"The VCF file has the following sample names not present in Pedigree: "
+				+ Joiner.on(", ").join(missing));
 	}
-
 }

@@ -6,10 +6,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
-import de.charite.compbio.jannovar.vardbs.base.AbstractDBAnnotationDriver;
+import de.charite.compbio.jannovar.vardbs.base.vcf.AbstractVCFDBAnnotationDriver;
 import de.charite.compbio.jannovar.vardbs.base.AnnotatingRecord;
 import de.charite.compbio.jannovar.vardbs.base.DBAnnotationOptions;
-import de.charite.compbio.jannovar.vardbs.base.GenotypeMatch;
+import de.charite.compbio.jannovar.vardbs.base.vcf.GenotypeMatch;
 import de.charite.compbio.jannovar.vardbs.base.JannovarVarDBException;
 import de.charite.compbio.jannovar.vardbs.base.VCFHeaderExtender;
 import de.charite.compbio.jannovar.vardbs.base.VCFReaderVariantProvider;
@@ -23,7 +23,7 @@ import htsjdk.variant.variantcontext.VariantContextBuilder;
  *
  * @author <a href="mailto:manuel.holtgrewe@bihealth.de">Manuel Holtgrewe</a>
  */
-public class GnomadAnnotationDriver extends AbstractDBAnnotationDriver<GnomadRecord> {
+public class GnomadAnnotationDriver extends AbstractVCFDBAnnotationDriver<GnomadRecord> {
 
 	public GnomadAnnotationDriver(String vcfPath, String fastaPath, DBAnnotationOptions options)
 			throws JannovarVarDBException {

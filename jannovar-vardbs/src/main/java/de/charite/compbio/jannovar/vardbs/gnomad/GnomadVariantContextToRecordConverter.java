@@ -6,13 +6,13 @@ import java.util.stream.Collectors;
 
 import com.google.common.collect.ImmutableList;
 
-import de.charite.compbio.jannovar.vardbs.base.VariantContextToRecordConverter;
+import de.charite.compbio.jannovar.vardbs.base.vcf.VariantContextToRecordConverter;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.VariantContext;
 
 /**
  * Helper class for the conversion of {@link VariantContext} to {@link GnomadRecord} objects
- * 
+ *
  * @author <a href="mailto:manuel.holtgrewe@bihealth.de">Manuel Holtgrewe</a>
  */
 final class GnomadVariantContextToRecordConverter implements VariantContextToRecordConverter<GnomadRecord> {
