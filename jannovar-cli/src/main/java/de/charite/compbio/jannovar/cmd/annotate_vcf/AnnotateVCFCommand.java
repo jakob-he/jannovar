@@ -1,5 +1,11 @@
 package de.charite.compbio.jannovar.cmd.annotate_vcf;
 
+import java.io.*;
+import java.net.URLEncoder;
+import java.net.ServerSocket;
+import java.net.Socket;
+import java.net.InetAddress;
+
 import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableList;
 import de.charite.compbio.jannovar.Jannovar;
@@ -54,8 +60,6 @@ import htsjdk.variant.vcf.VCFContigHeaderLine;
 import htsjdk.variant.vcf.VCFFileReader;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
-import java.io.File;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -95,14 +99,95 @@ public class AnnotateVCFCommand extends JannovarAnnotationCommand {
 	 *             on problems with the annotation
 	 */
 	@Override
-	public void run() throws JannovarException {
+	public void run() throws JannovarException{
 		System.err.println("Options");
 		System.err.println(options.toString());
 
+		if (options.getInitServer()){
+			initServer();
+		} else if(options.getServerMode()){
+			serverProcessing();
+		} else {
+			simpleFileProcessing();
+		}
+	}
+
+	private void initServer() throws JannovarException{
 		System.err.println("Deserializing transcripts...");
 		deserializeTranscriptDefinitionFile(options.getDatabaseFilePath());
+		System.err.println("Initializing Server");
+		System.err.println("Running on port: " + Integer.toString(options.getServerPort()));
+		try (ServerSocket server = new ServerSocket(options.getServerPort())) {
+			while (true) {
+				acceptConnection(server);
+			}
+		} catch (IOException e) {
+			System.err.println(e.getMessage());
+		}
+	}
 
+	private void simpleFileProcessing() throws JannovarException {
+		System.err.println("Deserializing transcripts...");
+		deserializeTranscriptDefinitionFile(options.getDatabaseFilePath());
 		final String vcfPath = options.getPathInputVCF();
+		final String output = options.getPathOutputVCF();
+		annotateVCF(vcfPath, output);
+	}
+
+	private void serverProcessing() throws JannovarException {
+		final String vcfPath = options.getPathInputVCF();
+		final String output = options.getPathOutputVCF();
+		try (
+		      Socket socket = new Socket(InetAddress.getByName("localhost"), options.getServerPort());
+					BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+					PrintWriter out = new PrintWriter(socket.getOutputStream(),true);
+				){
+				out.println(vcfPath);
+				out.println(output);
+				out.println("Upload complete!");
+				String fromServer;
+				while ((fromServer = in.readLine()) != null) {
+					System.err.println(fromServer);
+					if (fromServer.equals("Annotation done!")){
+						break;
+					}
+    		}
+				}
+				catch(Exception exception){
+					exception.printStackTrace();
+				}
+	}
+
+	private void acceptConnection(ServerSocket server) {
+		try (
+			Socket socket = server.accept();
+			BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+			OutputStream os = socket.getOutputStream();
+			PrintWriter out = new PrintWriter(socket.getOutputStream(),true);
+		) {
+			List<String> inputLines = new ArrayList<String>();
+			String inputLine;
+			while ((inputLine = in.readLine()) != null) {
+	        if (inputLine.equals("Upload complete!")){
+						System.err.println(inputLine);
+						PrintStream stderr = System.err;
+						PrintStream stdout = System.out;
+						PrintStream ps = new PrintStream(os);
+						System.setErr(ps);
+						annotateVCF(inputLines.get(0),inputLines.get(1));
+						System.setErr(stderr);
+						break;
+					}
+					inputLines.add(inputLine);
+	    }
+			out.println("Annotation done!");
+		}
+		catch (Exception e) {
+				e.printStackTrace();
+			}
+	}
+
+	private void annotateVCF(final String vcfPath, final String output) throws JannovarException {
 
 		// whether or not to require availability of an index
 		final boolean useInterval = (options.getInterval() != null && !options.getInterval().equals(""));
@@ -414,9 +499,9 @@ public class AnnotateVCFCommand extends JannovarAnnotationCommand {
 					new VCFHeaderLine("jannovarVersion", Jannovar.getVersion()),
 					new VCFHeaderLine("jannovarCommand", Joiner.on(' ').join(argv)));
 
-			// Construct VariantContextWriter and start annotationg pipeline
+			// Construct VariantContextWriter and start annotation pipeline
 			try (VariantContextWriter vcfWriter = VariantContextWriterConstructionHelper
-					.openVariantContextWriter(vcfHeader, options.getPathOutputVCF(), jvHeaderLines);
+					.openVariantContextWriter(vcfHeader, output, jvHeaderLines);
 					VariantContextProcessor sink = buildMendelianProcessors(vcfWriter, vcfHeader)) {
 				// Make current VC available to progress printer
 				if (this.progressReporter != null)
@@ -427,7 +512,7 @@ public class AnnotateVCFCommand extends JannovarAnnotationCommand {
 				throw new JannovarException("Problem opening file", e);
 			}
 
-			System.err.println("Wrote annotations to \"" + options.getPathOutputVCF() + "\"");
+			System.err.println("Wrote annotations to \"" + output + "\"");
 			final long endTime = System.nanoTime();
 			System.err.println(String.format("Annotation and writing took %.2f sec.",
 					(endTime - startTime) / 1000.0 / 1000.0 / 1000.0));
@@ -450,7 +535,6 @@ public class AnnotateVCFCommand extends JannovarAnnotationCommand {
 			e.printStackTrace(System.err);
 			return;
 		}
-
 		if (progressReporter != null)
 			progressReporter.done();
 	}

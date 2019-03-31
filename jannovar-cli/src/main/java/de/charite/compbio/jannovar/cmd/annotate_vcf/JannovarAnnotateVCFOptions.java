@@ -209,6 +209,15 @@ public class JannovarAnnotateVCFOptions extends JannovarAnnotationOptions {
 	/** Configuration for annotation with VCF files. */
 	private List<GenericVCFAnnotationOptions> vcfAnnotationOptions = new ArrayList<>();
 
+	/** Setting to run on server */
+	private boolean serverMode;
+
+	/** server default port */
+	private int serverPort;
+
+	/** Setting to init a Server **/
+	private boolean initServer;
+
 	/**
 	 * Setup {@link ArgumentParser}
 	 *
@@ -228,12 +237,9 @@ public class JannovarAnnotateVCFOptions extends JannovarAnnotationOptions {
 		subParser.description("Perform annotation of a single VCF file");
 
 		ArgumentGroup requiredGroup = subParser.addArgumentGroup("Required arguments");
-		requiredGroup.addArgument("-i", "--input-vcf").help("Path to input VCF file")
-				.required(true);
-		requiredGroup.addArgument("-o", "--output-vcf").help("Path to output VCF file")
-				.required(true);
-		requiredGroup.addArgument("-d", "--database").help("Path to database .ser file")
-				.required(true);
+		requiredGroup.addArgument("-i", "--input-vcf").help("Path to input VCF file");
+		requiredGroup.addArgument("-o", "--output-vcf").help("Path to output VCF file");
+		requiredGroup.addArgument("-d", "--database").help("Path to database .ser file");
 
 		ArgumentGroup annotationGroup =
 				subParser.addArgumentGroup("Annotation Arguments (optional)");
@@ -401,6 +407,12 @@ public class JannovarAnnotateVCFOptions extends JannovarAnnotationOptions {
 		optionalGroup.addArgument("--disable-parent-gt-is-filtered").setDefault(true)
 				.dest("use_parent_gt_is_filtered").action(Arguments.storeFalse());
 
+		ArgumentGroup serverGroup = subParser.addArgumentGroup("Server Mode Arguments");
+		serverGroup.addArgument("--init-server").help("Intialize a new Server.").setDefault(false).action(Arguments.storeTrue());
+		serverGroup.addArgument("--server").help("Run as server.").setDefault(false).action(Arguments.storeTrue());
+		serverGroup.addArgument("--port").help("Set port for server. Default port 8888.").setDefault(8888);
+
+
 		JannovarBaseOptions.setupParser(subParser);
 	}
 
@@ -432,6 +444,9 @@ public class JannovarAnnotateVCFOptions extends JannovarAnnotationOptions {
 		prefixTabix = args.getList("tabix_prefix");
 		pathReMM = args.getString("remm_tabix");
 		prefixReMM = args.getString("remm_prefix");
+		initServer = args.getBoolean("init_server");
+		serverMode = args.getBoolean("server");
+		serverPort = args.getInt("port");
 
 		if (pathFASTARef == null && (pathVCFDBSNP != null || pathVCFExac != null || pathVCFUK10K != null
 				|| pathVCF1KG != null || !pathTabix.isEmpty()))
@@ -891,6 +906,12 @@ public class JannovarAnnotateVCFOptions extends JannovarAnnotationOptions {
 	public void setUseParentGtIsFiltered(boolean useParentGtIsFiltered) {
 		this.useParentGtIsFiltered = useParentGtIsFiltered;
 	}
+
+	public boolean getInitServer() { return initServer; }
+
+	public boolean getServerMode() { return serverMode; }
+
+	public int getServerPort() { return serverPort; }
 
 	@Override
 	public String toString() {
