@@ -11,7 +11,7 @@ import com.google.common.collect.ImmutableSortedMap;
 
 /**
  * Represents on entry in the ExAC VCF database file
- * 
+ *
  * @author <a href="mailto:manuel.holtgrewe@bihealth.de">Manuel Holtgrewe</a>
  */
 public class ExacRecord {
@@ -183,6 +183,7 @@ public class ExacRecord {
 
 	/** @return Highest frequency of the given allele, 0 is first alternative allele */
 	public double highestAlleleFreq(int alleleNo) {
+		ExacPopulation bestpop = popWithHighestAlleleFreq(alleleNo);
 		return getAlleleFrequencies(popWithHighestAlleleFreq(alleleNo)).get(alleleNo);
 	}
 

@@ -50,11 +50,16 @@ public class ExacAnnotationDriver extends AbstractVCFDBAnnotationDriver<ExacReco
 				} else {
 					final ExacRecord current = annotatingExacRecord.get(alleleNo).getRecord();
 					final ExacRecord update = matchToRecord.get(m).getRecord();
-					if (update.getAlleleFrequencies(ExacPopulation.ALL).size() < alleleNo)
-						continue;
-					if ((isMatch && current.highestAlleleFreq(alleleNo - 1) < update.highestAlleleFreq(alleleNo - 1))
-							|| (!isMatch && current.highestAlleleFreqOverall() < update.highestAlleleFreqOverall()))
-						annotatingExacRecord.put(alleleNo, matchToRecord.get(m));
+					try{
+						if (update.getAlleleFrequencies(ExacPopulation.ALL).size() < alleleNo)
+							continue;
+						if ((isMatch && current.highestAlleleFreq(alleleNo - 1) < update.highestAlleleFreq(alleleNo - 1))
+								|| (!isMatch && current.highestAlleleFreqOverall() < update.highestAlleleFreqOverall()))
+							annotatingExacRecord.put(alleleNo, matchToRecord.get(m));
+					}
+					catch(ArrayIndexOutOfBoundsException e){
+						System.err.println(alleleNo);
+					}
 				}
 			}
 		}
