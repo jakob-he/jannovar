@@ -58,7 +58,7 @@ public class ExacAnnotationDriver extends AbstractVCFDBAnnotationDriver<ExacReco
 							annotatingExacRecord.put(alleleNo, matchToRecord.get(m));
 					}
 					catch(ArrayIndexOutOfBoundsException e){
-						System.err.println(alleleNo);
+						System.err.printf("Failed Variant: CHROM: %s POS: %d\n",current.getChrom(),current.getPos());
 					}
 				}
 			}
